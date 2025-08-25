@@ -1,0 +1,165 @@
+{
+  "run": [
+    {
+      "method": "shell.run",
+      "params": {
+        "message": "git clone https://github.com/MeiGen-AI/InfiniteTalk app"
+      }
+    },
+    {
+      "method": "input",
+      "params": {
+        "title": "Setup",
+        "form": [
+          {
+            "title": "PyTorch build (cu121 or cpu)",
+            "key": "TORCH_BUILD",
+            "placeholder": "cu121",
+            "description": "Choose 'cu121' for NVIDIA CUDA 12.1 wheels (Windows/Linux with CUDA 12.x). Use 'cpu' if you don’t have an NVIDIA GPU."
+          },
+          {
+            "title": "Install flash-attn? (y/n)",
+            "key": "INSTALL_FLASH_ATTN",
+            "placeholder": "n",
+            "description": "Speeds up inference on many Linux/NVIDIA setups; may fail on Windows or non-matching CUDA."
+          },
+          {
+            "title": "Download model weights now? (y/n)",
+            "key": "DOWNLOAD_MODELS",
+            "placeholder": "y",
+            "description": "Downloads Wan 2.1 I2V, wav2vec2, and InfiniteTalk weights from Hugging Face."
+          }
+        ]
+      }
+    },
+
+    // --- Python env + core deps ---
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "python -m pip install -U pip"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.TORCH_BUILD || 'cu121').toLowerCase()==='cu121' ? 'pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121' : 'pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.TORCH_BUILD || 'cu121').toLowerCase()==='cu121' ? 'pip install -U xformers==0.0.28 --index-url https://download.pytorch.org/whl/cu121' : 'pip install -U xformers==0.0.28' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "pip install misaki[en] ninja psutil packaging wheel"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.INSTALL_FLASH_ATTN || 'n').toLowerCase().startsWith('y') ? 'pip install flash_attn==2.7.4.post1' : 'python -c \"print(\\'Skipping flash_attn\\')\"' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "pip install -r requirements.txt"
+      }
+    },
+
+    // --- Audio/FFmpeg (binary via conda) + librosa in venv ---
+    {
+      "method": "shell.run",
+      "params": {
+        "message": "conda install -y -c conda-forge ffmpeg"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "pip install librosa"
+      }
+    },
+
+    // --- HF CLI + optional weights download ---
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "pip install -U huggingface_hub"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.DOWNLOAD_MODELS || 'y').toLowerCase().startsWith('y') ? 'huggingface-cli download Wan-AI/Wan2.1-I2V-14B-480P --local-dir ./weights/Wan2.1-I2V-14B-480P' : 'python -c \"print(\\'Skipping model downloads\\')\"' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.DOWNLOAD_MODELS || 'y').toLowerCase().startsWith('y') ? 'huggingface-cli download TencentGameMate/chinese-wav2vec2-base --local-dir ./weights/chinese-wav2vec2-base' : 'python -c \"print(\\'Skipping\\')\"' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.DOWNLOAD_MODELS || 'y').toLowerCase().startsWith('y') ? 'huggingface-cli download TencentGameMate/chinese-wav2vec2-base model.safetensors --revision refs/pr/1 --local-dir ./weights/chinese-wav2vec2-base' : 'python -c \"print(\\'Skipping\\')\"' }}"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "venv": "env",
+        "venv_python": "3.10",
+        "path": "app",
+        "message": "{{ (input.DOWNLOAD_MODELS || 'y').toLowerCase().startsWith('y') ? 'huggingface-cli download MeiGen-AI/InfiniteTalk --local-dir ./weights/InfiniteTalk' : 'python -c \"print(\\'Skipping\\')\"' }}"
+      }
+    },
+
+    // --- Finish ---
+    {
+      "method": "notify",
+      "params": {
+        "html": "<b>InfiniteTalk install complete</b><br>Click to launch the app.",
+        "href": "./start.json"
+      }
+    }
+  ]
+}
